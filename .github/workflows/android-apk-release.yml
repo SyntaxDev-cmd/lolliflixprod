@@ -1,0 +1,82 @@
+name: Build LOLLIFLIX PRO (APK Release - producao, sem assinar)
+
+# Gera um APK de RELEASE (producao, NAO-depuravel) SEM assinatura.
+# Voce assina depois / converte para AAB do seu jeito.
+# Actions > este workflow > Run workflow. Baixe em Artifacts.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund --omit=optional
+
+      - name: Adicionar plataforma Android
+        run: npx cap add android
+
+      - name: Ajustar para Android 16 (targetSDK 36)
+        run: |
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 36/' android/variables.gradle
+          sed -i 's/targetSdkVersion = [0-9]*/targetSdkVersion = 36/' android/variables.gradle
+          sed -i -E "s#com.android.tools.build:gradle:[0-9.]+#com.android.tools.build:gradle:8.11.1#" android/build.gradle
+          sed -i -E "s#gradle-[0-9.]+-(all|bin).zip#gradle-8.13-bin.zip#" android/gradle/wrapper/gradle-wrapper.properties
+          echo "--- variables.gradle ---"; cat android/variables.gradle
+
+      - name: Instalar SDK 36
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0" || true
+
+      - name: Forcar orientacao PAISAGEM (AndroidManifest)
+        run: |
+          MF=android/app/src/main/AndroidManifest.xml
+          sed -i 's#android:name=".MainActivity"#android:name=".MainActivity" android:screenOrientation="sensorLandscape"#' "$MF"
+
+      - name: Gerar icones e splash (opcional)
+        run: npx --yes @capacitor/assets@3 generate --android || echo "assets ignorado"
+
+      - name: Sincronizar (cap sync)
+        run: npx cap sync android
+
+      - name: Build APK Release (producao, nao-depuravel, sem assinar)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace \
+            -Pandroid.injected.version.code=${{ github.run_number }} \
+            -Pandroid.injected.version.name=1.0.${{ github.run_number }}
+
+      - name: Localizar APK gerado
+        id: find
+        run: |
+          echo "--- APKs release ---"
+          ls -la android/app/build/outputs/apk/release/ || true
+
+      - name: Publicar APK (release, sem assinar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: LOLLIFLIX-PRO-APK-release-unsigned
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
