@@ -1,0 +1,36 @@
+{
+  "name": "lolliflixpro",
+  "productName": "LOLLIFLIX PRO",
+  "version": "1.0.0",
+  "description": "LOLLIFLIX PRO - Doramas, Novelas, Turcas e catalogo completo (Xtream + TMDB)",
+  "author": "LOLLIFLIX PRO",
+  "license": "MIT",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "android:add": "cap add android",
+    "android:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/core": "6.1.2",
+    "@capacitor/screen-orientation": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.1.2"
+  },
+  "optionalDependencies": {
+    "electron": "^31.7.6",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.lolliflixpro.app",
+    "productName": "LOLLIFLIX PRO",
+    "directories": { "output": "dist", "buildResources": "assets" },
+    "files": ["electron/**/*", "www/**/*", "package.json"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "assets/icon.png" },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "LOLLIFLIX PRO" }
+  }
+}
